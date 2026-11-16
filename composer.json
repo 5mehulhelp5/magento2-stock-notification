@@ -9,7 +9,6 @@
         "magento/module-product-alert": "*",
         "magento/module-inventory-low-quantity-notification": "*"
     },
-    "version": "1.0.0",
     "autoload": {
         "files": ["registration.php"],
         "psr-4": {
