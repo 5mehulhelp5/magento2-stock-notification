@@ -35,4 +35,27 @@
             </argument>
         </arguments>
     </type>
+    <!-- Tonyapps_EmailDesigner: real-data preview with the store's alerts. Ignored without that module. -->
+    <type name="Tonyapps\EmailDesigner\Model\PreviewPool">
+        <arguments>
+            <argument name="providers" xsi:type="array">
+                <item name="stocknotification" xsi:type="array">
+                    <item name="templates" xsi:type="array">
+                        <item name="0" xsi:type="string">tonyapps_stocknotification_email_guest_stock_template</item>
+                        <item name="1" xsi:type="string">tonyapps_stocknotification_email_guest_price_template</item>
+                        <item name="2" xsi:type="string">tonyapps_stocknotification_email_guest_confirm_template</item>
+                        <item name="3" xsi:type="string">tonyapps_stocknotification_email_admin_subscription_template</item>
+                        <item name="4" xsi:type="string">tonyapps_stocknotification_email_admin_low_stock_template</item>
+                    </item>
+                    <item name="provider" xsi:type="object">Tonyapps\StockNotification\Model\EmailPreview</item>
+                </item>
+            </argument>
+        </arguments>
+    </type>
+    <!-- Own storefront URL builder for email links: not shared, so its setScope() never changes the shared one. -->
+    <type name="Tonyapps\StockNotification\Model\GuestAlertSender">
+        <arguments>
+            <argument name="frontendUrl" xsi:type="object" shared="false">Magento\Framework\Url</argument>
+        </arguments>
+    </type>
 </config>

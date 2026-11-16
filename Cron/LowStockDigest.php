@@ -25,6 +25,16 @@ class LowStockDigest
             return;
         }
 
+        $this->notifier->notifyLowStock($this->rows());
+    }
+
+    /**
+     * Everything below its notify-quantity threshold now. Shared with the Email Designer preview (Model\EmailPreview).
+     *
+     * @return array<int, array{sku: string, name: string, qty: float, source: string}>
+     */
+    public function rows(): array
+    {
         $rows = [];
         foreach ($this->collectionFactory->create() as $sourceItem) {
             $rows[] = [
@@ -34,7 +44,6 @@ class LowStockDigest
                 'source' => (string) $sourceItem->getSourceCode(),
             ];
         }
-
-        $this->notifier->notifyLowStock($rows);
+        return $rows;
     }
 }

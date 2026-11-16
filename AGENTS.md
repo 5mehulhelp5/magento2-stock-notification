@@ -27,6 +27,15 @@ Other files: `Helper\Data` (config reader), `Model\GuestAlert` (+ resource/colle
 
 Email Designer (`etc/di.xml`, ignored without `Tonyapps_EmailDesigner`): blocks `stocknotification_products` (*Product list*, `{{var productsHtml|raw}}`; guest stock and price alerts) and `stocknotification_low_stock` (*Low stock table*, header row + `{{var rowsHtml|raw}}`; low stock digest); a starter per email in `view/adminhtml/email_designer/` (`guest_stock_alert`, `guest_price_alert`, `new_subscription`, `low_stock`, `guest_confirm` `.mjml`).
 
+Email Designer real-data preview: `Model\EmailPreview` (registered on `Tonyapps\EmailDesigner\Model\PreviewPool` in `etc/di.xml` for all five emails, duck-typed). Variables come from the senders' own methods: `GuestAlertSender::alertVars()` and `confirmationVars()`, `AdminNotifier::newSubscriptionVars()` and `lowStockVars()`, `Cron\LowStockDigest::rows()`. Records:
+
+- guest stock / price alert: the newest guest alerts of that type; the preview shows that one product as if it had just triggered (the real email lists every product that triggered for the address, and the trigger check is skipped). Built in the alert's store emulation.
+- guest confirmation: the newest guest alerts, unconfirmed ones labelled; built in the alert's store emulation.
+- admin new subscription: confirmed guest alerts (`guest-<id>`) and customers' core alerts (`stock-<id>`, `price-<id>`), newest first, looked up as `Controller\Guest\Confirm` and `Plugin\NotifyAdminOnCoreAlert` do.
+- admin low stock digest: one record, "Current low stock", from the digest's own query; refused when nothing is low.
+
+Read-only: nothing is sent, saved, purged or re-priced; no placeholders are needed (guest alerts always have a token). `getStoreId()` returns the guest alert's store for the three guest emails and null for the admin emails (default store view, as `AdminNotifier` sends them).
+
 ### Cron
 
 - `tonyapps_stocknotification_guest_alerts` (`Model\GuestAlertSender::send`) — every 15 min, guest counterpart to core's `product_alert` job. Loads each product once per store per run, and first purges unconfirmed alerts older than 7 days and sent alerts older than 180 days.
@@ -72,7 +81,7 @@ ACL (under `Magento_Catalog::catalog`): `Tonyapps_StockNotification::dashboard` 
 vendor/bin/phpunit -c dev/tests/unit/phpunit.xml.dist app/code/Tonyapps/StockNotification/Test/Unit
 ```
 
-Unit tests: Subscribe block, guest Subscribe controller, Helper, GuestAlertSender, GuestSubscriber, NotifyAdminOnCoreAlert, account navigation layout, layouts. Playwright: `../e2e/tests/stock-notification.spec.js` (helper `../e2e/restock.php`).
+Unit tests: Subscribe block, guest Subscribe controller, Helper, GuestAlertSender, GuestSubscriber, EmailPreview, NotifyAdminOnCoreAlert, account navigation layout, layouts. Playwright: `../e2e/tests/stock-notification.spec.js` (helper `../e2e/restock.php`).
 
 ## Operations
 
@@ -83,6 +92,8 @@ bin/magento setup:upgrade
 
 ## Change history
 
+- **2026-11-15 storefront links in admin-sent emails**: Built in an admin request (including the Email Designer preview), the guest confirm and unsubscribe links (e.g. alerts sent during an admin product save) came out as an admin link with a secret key, because `Store::getUrl()` uses the area's `UrlInterface`. `GuestAlertSender` now builds storefront links with its own non-shared `Magento\Framework\Url` (`frontendUrl`, `etc/di.xml`) scoped to the email's store; tests in `GuestAlertSenderTest`.
+- **2026-11-15 Email Designer real-data preview**: `Model\EmailPreview` (see Architecture). Template variables moved into public methods used by both the senders and the preview: `GuestAlertSender::alertVars()`, `confirmationVars()`, `AdminNotifier::newSubscriptionVars()`, `lowStockVars()`, and the digest query into `LowStockDigest::rows()`. Tests in `EmailPreviewTest`.
 - **2026-11-13 Email Designer blocks and starter designs**: `etc/di.xml` registers the *Product list* and *Low stock table* blocks and a starter design for each of the five emails (heading from the subject, the existing texts, the confirm link as a button).
 - **2026-11-11 email template settings**: each email's template is chosen in **Stores › Configuration › Catalog › Out of Stock Notification › Email Templates** (guest emails per store view, admin emails globally); a template from **Marketing › Email Templates** or an Email Designer design can be picked. Template IDs follow core's config-path convention so the setting can offer the default: `tonyapps_stocknotification_<email>` are now `tonyapps_stocknotification_email_<email>_template`. Theme overrides keep working (they go by file name). A custom template created from the old ID keeps its content, but its *Template Information* no longer names the default it was loaded from.
 - **2026-11-08 QA**: popup layout fixed; "My Product Alerts" navigation link fixed.

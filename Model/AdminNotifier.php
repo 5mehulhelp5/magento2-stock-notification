@@ -31,13 +31,23 @@ class AdminNotifier
         if (!$this->helper->isNewSubscriptionNotificationEnabled()) {
             return;
         }
-        $this->send('admin_subscription', [
+        $this->send('admin_subscription', $this->newSubscriptionVars($subscriberEmail, $productName, $alertType, $isGuest));
+    }
+
+    /**
+     * The new-subscription email's template variables. Shared with the Email Designer preview (Model\EmailPreview).
+     *
+     * @return array<string, mixed>
+     */
+    public function newSubscriptionVars(string $subscriberEmail, string $productName, string $alertType, bool $isGuest): array
+    {
+        return [
             'subscriber_email' => $subscriberEmail,
             'product_name' => $productName,
             'alert_type' => $alertType,
             // Cast: a Phrase object renders empty in email templates.
             'subscriber_type' => (string) ($isGuest ? __('Guest') : __('Customer')),
-        ]);
+        ];
     }
 
     /**
@@ -49,6 +59,17 @@ class AdminNotifier
             return;
         }
 
+        $this->send('admin_low_stock', $this->lowStockVars($rows));
+    }
+
+    /**
+     * The low stock digest's template variables. Shared with the Email Designer preview (Model\EmailPreview).
+     *
+     * @param array<int, array{sku: string, name: string, qty: float, source: string}> $rows
+     * @return array<string, mixed>
+     */
+    public function lowStockVars(array $rows): array
+    {
         // Email templates cannot loop reliably across versions, so the table is rendered here.
         $rowsHtml = '';
         foreach ($rows as $row) {
@@ -61,10 +82,10 @@ class AdminNotifier
             );
         }
 
-        $this->send('admin_low_stock', [
+        return [
             'rowsHtml' => $rowsHtml,
             'rowCount' => count($rows),
-        ]);
+        ];
     }
 
     /** @param string $email admin_subscription or admin_low_stock */

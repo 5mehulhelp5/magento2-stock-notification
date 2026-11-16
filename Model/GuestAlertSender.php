@@ -10,6 +10,7 @@ use Magento\Framework\Escaper;
 use Magento\Framework\Mail\Template\TransportBuilder;
 use Magento\Framework\Pricing\PriceCurrencyInterface;
 use Magento\Framework\Stdlib\DateTime;
+use Magento\Framework\Url;
 use Magento\ProductAlert\Helper\Data as ProductAlertHelper;
 use Magento\ProductAlert\Model\ProductSalability;
 use Magento\Store\Model\App\Emulation;
@@ -36,7 +37,9 @@ class GuestAlertSender
         private readonly TransportBuilder $transportBuilder,
         private readonly PriceCurrencyInterface $priceCurrency,
         private readonly Escaper $escaper,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        // Storefront URL builder: the injected UrlInterface is the admin one in admin requests (links get the admin path and a secret key).
+        private readonly Url $frontendUrl
     ) {
     }
 
@@ -125,16 +128,12 @@ class GuestAlertSender
      */
     private function dispatch(string $email, string $alertType, array $triggered, int $storeId): void
     {
-        $rows = '';
-        foreach ($triggered as [$alert, $product]) {
-            $rows .= $this->renderRow($alert, $product, $storeId);
-        }
-
+        $vars = $this->alertVars($triggered, $storeId);
         try {
             $transport = $this->transportBuilder
                 ->setTemplateIdentifier($this->helper->getEmailTemplate('guest_' . $alertType, $storeId))
                 ->setTemplateOptions(['area' => Area::AREA_FRONTEND, 'store' => $storeId])
-                ->setTemplateVars(['productsHtml' => $rows])
+                ->setTemplateVars($vars)
                 ->setFromByScope('general', $storeId)
                 ->addTo($email)
                 ->getTransport();
@@ -165,23 +164,49 @@ class GuestAlertSender
         $transport = $this->transportBuilder
             ->setTemplateIdentifier($this->helper->getEmailTemplate('guest_confirm', $storeId))
             ->setTemplateOptions(['area' => Area::AREA_FRONTEND, 'store' => $storeId])
-            ->setTemplateVars([
-                'product_name' => (string) $product->getName(),
-                'alert_type' => $alert->getAlertType(),
-                'confirm_url' => $this->storeManager->getStore($storeId)->getUrl(
-                    'stocknotification/guest/confirm',
-                    ['token' => $alert->getUnsubscribeToken(), '_nosid' => true]
-                ),
-            ])
+            ->setTemplateVars($this->confirmationVars($alert, $product))
             ->setFromByScope('general', $storeId)
             ->addTo($alert->getEmail())
             ->getTransport();
         $transport->sendMessage();
     }
 
+    /**
+     * The guest stock/price alert's template variables. Shared with the Email Designer preview (Model\EmailPreview);
+     * call it in the store's emulation, as send() does.
+     *
+     * @param array<int, array{0: GuestAlert, 1: ProductInterface}> $triggered
+     * @return array<string, mixed>
+     */
+    public function alertVars(array $triggered, int $storeId): array
+    {
+        $rows = '';
+        foreach ($triggered as [$alert, $product]) {
+            $rows .= $this->renderRow($alert, $product, $storeId);
+        }
+        return ['productsHtml' => $rows];
+    }
+
+    /**
+     * The confirmation email's template variables. Shared with the Email Designer preview (Model\EmailPreview).
+     *
+     * @return array<string, mixed>
+     */
+    public function confirmationVars(GuestAlert $alert, ProductInterface $product): array
+    {
+        return [
+            'product_name' => (string) $product->getName(),
+            'alert_type' => $alert->getAlertType(),
+            'confirm_url' => $this->frontendUrl->setScope((int) $alert->getStoreId())->getUrl(
+                'stocknotification/guest/confirm',
+                ['token' => $alert->getUnsubscribeToken(), '_nosid' => true]
+            ),
+        ];
+    }
+
     private function renderRow(GuestAlert $alert, ProductInterface $product, int $storeId): string
     {
-        $unsubscribeUrl = $this->storeManager->getStore($storeId)->getUrl(
+        $unsubscribeUrl = $this->frontendUrl->setScope($storeId)->getUrl(
             'stocknotification/guest/unsubscribe',
             ['token' => $alert->getUnsubscribeToken(), '_nosid' => true]
         );
