@@ -7,7 +7,7 @@ Read this before changing the module. Workspace-wide rules are in ../AGENTS.md.
 - Package `tonyapps/module-stock-notification` 1.0.0. Built; 2026-10-30 review fixes done.
 - Manual QA 2026-11-08: guest subscribe → confirm → back-in-stock email verified end to end; popup layout fixed (`0e321fe`); "My Product Alerts" link never rendered (wrong navigation block name) — fixed with a test.
 - 2026-11-11: email template settings added and template IDs renamed for the Email Designer (see Change history).
-- Hyvä: deferred 2026-11-08; this module was analysed first. To-do list in ../WORKPLAN.md item 5 (Hyvä variant of `product/subscribe.phtml`, `hyva_catalog_product_view.xml`, `customer/alerts.phtml` data-post → `hyva.postForm()`, Tailwind instead of `_module.less`). Today on Hyvä guests see only core's login link.
+- Hyvä: supported since 2026-11-16 (WORKPLAN item 5 pilot). `hyva_catalog_product_view.xml` swaps the subscribe block's template for `product/hyva/subscribe.phtml` (Alpine: logged-in switch on `private-content-loaded`, native `<dialog>` as the pop-up, `fetch` with `hyva.getFormKey()`, Tailwind classes that exist in Hyvä's default build only). The account page and token pages use one template for both themes (Luma classes plus Hyvä `btn btn-primary`/Tailwind). `_module.less` is Luma-only.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ Core `Magento_ProductAlert` already stores subscriptions, runs the cron, sends t
 | Stock & price subscriptions | Core. Switch on under **Stores > Configuration > Catalog > Catalog > Product Alerts**. |
 | Guest subscriptions + pop-up | `tonyapps_stocknotification_guest` table, ajax controller `Controller\Guest\Subscribe` → `Model\GuestSubscriber`; `Block\Product\Subscribe` (`product/subscribe.phtml`, `catalog_product_view.xml`) replaces the two core product-page links. Stock link shown when the product is not available, price link when it is (and the core alert type is allowed). **Double opt-in:** a new guest alert stays unconfirmed (status 2) until the address owner confirms from the email; at most 5 unconfirmed alerts per address (`MAX_UNCONFIRMED_PER_EMAIL`). Confirm and unsubscribe links (`Controller\Guest\Confirm`, `Controller\Guest\Unsubscribe`, `guest/token_action.phtml`, `cacheable="false"`) show a button (GET changes nothing, so mail scanners can't act) and act on POST (plain POST, token-based CSRF). |
 | Admin notifications | `Plugin\NotifyAdminOnCoreAlert` on `Magento\ProductAlert\Model\Stock` and `\Price` (new customer subscription, not re-subscribes), guest subscriptions once confirmed, and a daily `Cron\LowStockDigest` reusing the Low Stock report's own collection. Sent by `Model\AdminNotifier` (sender identity `general`). Admin emails render in the frontend area, where the email header/footer exist. |
-| Customer account page | `stocknotification/alerts/index` (`Controller\Alerts\Index`, `Block\Customer\Alerts`, `customer/alerts.phtml`, `cacheable="false"`), link "My Product Alerts" in `customer_account_navigation`. Reads the core alert tables, unsubscribes through core's own controllers (data-post). |
+| Customer account page | `stocknotification/alerts/index` (`Controller\Alerts\Index`, `Block\Customer\Alerts`, `customer/alerts.phtml`, `cacheable="false"`), link "My Product Alerts" in `customer_account_navigation`. Reads the core alert tables; Unsubscribe is a plain POST form (form key) to `Controller\Alerts\Unsubscribe`, which deletes the customer's alerts of that type and product in the website (all store views). Core's `productalert/unsubscribe/price` can't be used: it looks the alert up by `store_id` without setting it, so it deletes nothing while saying it did (2.4.8); it also takes GET only while `unsubscribe/stock` takes POST only. |
 | Analytics dashboard | **Catalog > Inventory > Stock Notifications** (`tonyapps_stocknotification/dashboard/index`, `Model\Analytics` view model, `dashboard.phtml`): totals (customer stock alerts, customer price alerts, guests waiting, guests notified, alerts sent), most-wanted products (SKU, product, subscribers, guests, alerts sent), latest guest subscriptions. |
 
 Guest alert sending (`Model\GuestAlertSender::send`): purges first, loads all pending alerts, buckets by store → email → type, skips stores where guest subscriptions are off and types core has disabled, loads each product once per store per run; stock = salable on the store's website; price = `final_price` < price stored at subscribe time (stored price is updated). One email per address per type listing all triggered products (`productsHtml`), sender `general`, prices via `convertAndFormat`.
@@ -73,7 +73,6 @@ ACL (under `Magento_Catalog::catalog`): `Tonyapps_StockNotification::dashboard` 
 
 ## Known limitations and open points
 
-- Hyvä storefront not supported yet (see Status).
 
 ## Tests
 
@@ -92,6 +91,7 @@ bin/magento setup:upgrade
 
 ## Change history
 
+- **2026-11-16** — Hyvä support (see Status). Unsubscribe on *My Product Alerts* fixed for both themes: it posted to core's price controller, which never deleted the alert (and Luma's `data-post` sent POST to a GET-only action, so price alerts could not be removed at all); now `stocknotification/alerts/unsubscribe` (`UnsubscribeTest`). Playwright: signed-in round trip in `stock-notification.spec.js`, guest + signed-in on Hyvä in `hyva-stock-notification.spec.js`.
 - **2026-11-16** — Released as free software under GPL-3.0-or-later (owner decision): `LICENSE` added,
   `composer.json` license changed from `proprietary`, License section in the README.
 - **2026-11-15 storefront links in admin-sent emails**: Built in an admin request (including the Email Designer preview), the guest confirm and unsubscribe links (e.g. alerts sent during an admin product save) came out as an admin link with a secret key, because `Store::getUrl()` uses the area's `UrlInterface`. `GuestAlertSender` now builds storefront links with its own non-shared `Magento\Framework\Url` (`frontendUrl`, `etc/di.xml`) scoped to the email's store; tests in `GuestAlertSenderTest`.

@@ -13,7 +13,7 @@ use Magento\ProductAlert\Model\ResourceModel\Stock\CollectionFactory as StockCol
 use Tonyapps\StockNotification\Model\GuestAlert;
 
 /**
- * Lists the signed-in customer's core product alerts. Unsubscribing reuses core's own controllers.
+ * Lists the signed-in customer's core product alerts; Unsubscribe posts to Controller\Alerts\Unsubscribe.
  */
 class Alerts extends Template
 {
@@ -60,8 +60,8 @@ class Alerts extends Template
                     'url' => (string) $product->getProductUrl(),
                     'add_date' => (string) $alert->getAddDate(),
                     'unsubscribe' => $this->postHelper->getPostData(
-                        $this->getUrl('productalert/unsubscribe/' . $type),
-                        ['product' => (int) $product->getId()]
+                        $this->getUrl('stocknotification/alerts/unsubscribe'),
+                        ['type' => $type, 'product' => (int) $product->getId()]
                     ),
                 ];
             }

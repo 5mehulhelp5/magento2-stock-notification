@@ -30,13 +30,13 @@ Magento Open Source can already send back-in-stock and price-drop alerts, but on
 - Guests can only subscribe to products that are enabled, visible and assigned to the store's website.
 - Admin notification settings apply to all stores; guest and pop-up settings can differ per store view.
 - Requires Magento cron to be running.
-- Built and tested on the Luma theme. On Hyvä, guests currently see only Magento's login link.
 
 ## Requirements
 
 - Magento Open Source 2.4.8
 - PHP 8.3 or 8.4
 - Magento modules: ProductAlert, InventoryLowQuantityNotification
+- Works with the Luma and Hyvä themes (on Hyvä the sign-up opens in a native pop-up, no extra package needed)
 
 ## Installation
 

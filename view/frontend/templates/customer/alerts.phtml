@@ -10,32 +10,39 @@ $alerts = $block->getAlerts();
             <span><?= $escaper->escapeHtml(__('You have no product alerts yet.')) ?></span>
         </div>
     <?php else : ?>
-        <table class="data table">
-            <caption class="table-caption"><?= $escaper->escapeHtml(__('My Product Alerts')) ?></caption>
+        <?php // Luma classes plus Tailwind ones present in the default Hyvä build, so one template serves both themes. ?>
+        <table class="data table w-full table-auto">
+            <caption class="table-caption sr-only"><?= $escaper->escapeHtml(__('My Product Alerts')) ?></caption>
             <thead>
                 <tr>
-                    <th scope="col" class="col name"><?= $escaper->escapeHtml(__('Product')) ?></th>
-                    <th scope="col" class="col type"><?= $escaper->escapeHtml(__('Alert')) ?></th>
-                    <th scope="col" class="col date"><?= $escaper->escapeHtml(__('Subscribed')) ?></th>
-                    <th scope="col" class="col actions">&nbsp;</th>
+                    <th scope="col" class="col name text-left p-2"><?= $escaper->escapeHtml(__('Product')) ?></th>
+                    <th scope="col" class="col type text-left p-2"><?= $escaper->escapeHtml(__('Alert')) ?></th>
+                    <th scope="col" class="col date text-left p-2"><?= $escaper->escapeHtml(__('Subscribed')) ?></th>
+                    <th scope="col" class="col actions p-2">&nbsp;</th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($alerts as $alert) : ?>
                 <tr>
-                    <td class="col name" data-th="<?= $escaper->escapeHtmlAttr(__('Product')) ?>">
+                    <td class="col name p-2 border-t" data-th="<?= $escaper->escapeHtmlAttr(__('Product')) ?>">
                         <a href="<?= $escaper->escapeUrl($alert['url']) ?>"><?= $escaper->escapeHtml($alert['name']) ?></a>
                     </td>
-                    <td class="col type" data-th="<?= $escaper->escapeHtmlAttr(__('Alert')) ?>">
+                    <td class="col type p-2 border-t" data-th="<?= $escaper->escapeHtmlAttr(__('Alert')) ?>">
                         <?= $escaper->escapeHtml($alert['label']) ?>
                     </td>
-                    <td class="col date" data-th="<?= $escaper->escapeHtmlAttr(__('Subscribed')) ?>">
+                    <td class="col date p-2 border-t" data-th="<?= $escaper->escapeHtmlAttr(__('Subscribed')) ?>">
                         <?= $escaper->escapeHtml($block->formatDate($alert['add_date'])) ?>
                     </td>
-                    <td class="col actions">
-                        <a href="#" class="action delete" data-post='<?= /* @noEscape */ $alert['unsubscribe'] ?>'>
-                            <?= $escaper->escapeHtml(__('Unsubscribe')) ?>
-                        </a>
+                    <td class="col actions p-2 border-t">
+                        <?php // A plain POST form, not Luma's data-post widget, so it works without Luma's JS (Hyvä). ?>
+                        <?php $post = json_decode($alert['unsubscribe'], true); ?>
+                        <form method="post" action="<?= $escaper->escapeUrl($post['action']) ?>">
+                            <?= $block->getBlockHtml('formkey') ?>
+                            <?php foreach ($post['data'] as $name => $value) : ?>
+                                <input type="hidden" name="<?= $escaper->escapeHtmlAttr($name) ?>" value="<?= $escaper->escapeHtmlAttr((string) $value) ?>"/>
+                            <?php endforeach; ?>
+                            <button type="submit" class="action delete underline"><?= $escaper->escapeHtml(__('Unsubscribe')) ?></button>
+                        </form>
                     </td>
                 </tr>
             <?php endforeach; ?>

@@ -1,0 +1,80 @@
+<?php
+/**
+ * Hyvä version of product/subscribe.phtml (set by hyva_catalog_product_view.xml): Alpine instead of RequireJS/jQuery,
+ * a native <dialog> as the popup, fetch() with hyva.getFormKey().
+ *
+ * @var \Tonyapps\StockNotification\Block\Product\Subscribe $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+
+$types = [];
+if ($block->isStockAlertVisible()) {
+    $types[\Tonyapps\StockNotification\Model\GuestAlert::TYPE_STOCK] = __('Notify me when this product is back in stock');
+}
+if ($block->isPriceAlertVisible()) {
+    $types[\Tonyapps\StockNotification\Model\GuestAlert::TYPE_PRICE] = __('Notify me when the price drops');
+}
+if (!$types) {
+    return;
+}
+$product = $block->getProduct();
+// The page is full-page cached: both variants are rendered and customer section data picks one in the browser.
+$guest = $block->isGuestFormAllowed();
+$popup = $block->isPopup();
+?>
+<div class="product alert stocknotification flex flex-col items-end gap-1" data-tonyapps-alert-widget
+     x-data="{ loggedIn: false }"
+     @private-content-loaded.window="loggedIn = !!($event.detail.data.customer && $event.detail.data.customer.firstname)">
+    <?php foreach ($types as $type => $label) : ?>
+        <?php $id = 'tonyapps-alert-' . $escaper->escapeHtmlAttr($type); ?>
+        <?php if (!$guest) : ?>
+            <a href="<?= $escaper->escapeUrl($block->getCoreSignupUrl($type)) ?>" class="underline"><?= $escaper->escapeHtml($label) ?></a>
+            <?php continue; ?>
+        <?php endif; ?>
+        <div x-data="{
+                 email: '', message: '', success: false, sending: false,
+                 open() { <?= $popup ? '$refs.dialog.showModal()' : '$refs.dialog.show()' ?> },
+                 send() {
+                     this.sending = true;
+                     fetch('<?= $escaper->escapeJs($block->getUrl('stocknotification/guest/subscribe')) ?>', {
+                         method: 'POST',
+                         headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                         body: new URLSearchParams({
+                             form_key: hyva.getFormKey(),
+                             product_id: '<?= (int) $product->getId() ?>',
+                             alert_type: '<?= $escaper->escapeJs($type) ?>',
+                             email: this.email
+                         })
+                     })
+                         .then((response) => response.json())
+                         .then((data) => { this.success = !!data.success; this.message = data.message; })
+                         .catch(() => { this.success = false; this.message = '<?= $escaper->escapeJs(__('Something went wrong. Please try again.')) ?>'; })
+                         .finally(() => { this.sending = false; });
+                 }
+             }">
+            <a href="<?= $escaper->escapeUrl($block->getCoreSignupUrl($type)) ?>" class="underline" x-show="loggedIn" x-cloak>
+                <?= $escaper->escapeHtml($label) ?>
+            </a>
+            <button type="button" class="underline" x-show="!loggedIn" @click="open()"><?= $escaper->escapeHtml($label) ?></button>
+
+            <dialog x-ref="dialog" aria-labelledby="<?= /* @noEscape */ $id ?>-title"
+                    class="tonyapps-alert-modal <?= $popup ? '' : 'static mt-2' ?> w-full max-w-xl rounded-lg p-4 shadow-xl">
+                <div class="flex items-start justify-between gap-4 mb-4">
+                    <h2 id="<?= /* @noEscape */ $id ?>-title" class="text-lg font-semibold text-left"><?= $escaper->escapeHtml($label) ?></h2>
+                    <button type="button" class="text-2xl leading-none" @click="$refs.dialog.close()"
+                            aria-label="<?= $escaper->escapeHtmlAttr(__('Close')) ?>">&times;</button>
+                </div>
+                <form x-show="!success" @submit.prevent="send()" class="flex flex-col gap-2 text-left">
+                    <label for="<?= /* @noEscape */ $id ?>-email" class="text-sm"><?= $escaper->escapeHtml(__('Email address')) ?></label>
+                    <input type="email" required id="<?= /* @noEscape */ $id ?>-email" name="email" x-model="email"
+                           class="form-input w-full" placeholder="<?= $escaper->escapeHtmlAttr(__('you@example.com')) ?>"/>
+                    <button type="submit" class="btn btn-primary justify-center" :disabled="sending">
+                        <?= $escaper->escapeHtml(__('Notify me')) ?>
+                    </button>
+                </form>
+                <p x-show="message" x-text="message" role="status" class="message mt-3 text-left"
+                   :class="success ? 'success' : 'error'"></p>
+            </dialog>
+        </div>
+    <?php endforeach; ?>
+</div>
