@@ -92,6 +92,8 @@ bin/magento setup:upgrade
 
 ## Change history
 
+- **2026-11-16** — Released as free software under GPL-3.0-or-later (owner decision): `LICENSE` added,
+  `composer.json` license changed from `proprietary`, License section in the README.
 - **2026-11-15 storefront links in admin-sent emails**: Built in an admin request (including the Email Designer preview), the guest confirm and unsubscribe links (e.g. alerts sent during an admin product save) came out as an admin link with a secret key, because `Store::getUrl()` uses the area's `UrlInterface`. `GuestAlertSender` now builds storefront links with its own non-shared `Magento\Framework\Url` (`frontendUrl`, `etc/di.xml`) scoped to the email's store; tests in `GuestAlertSenderTest`.
 - **2026-11-15 Email Designer real-data preview**: `Model\EmailPreview` (see Architecture). Template variables moved into public methods used by both the senders and the preview: `GuestAlertSender::alertVars()`, `confirmationVars()`, `AdminNotifier::newSubscriptionVars()`, `lowStockVars()`, and the digest query into `LowStockDigest::rows()`. Tests in `EmailPreviewTest`.
 - **2026-11-13 Email Designer blocks and starter designs**: `etc/di.xml` registers the *Product list* and *Low stock table* blocks and a starter design for each of the five emails (heading from the subject, the existing texts, the confirm link as a button).

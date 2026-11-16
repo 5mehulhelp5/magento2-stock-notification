@@ -61,3 +61,7 @@ Each email's template is chosen under **Stores › Configuration › Catalog ›
 ## For developers
 
 Architecture, decisions, data model and tests are in [AGENTS.md](AGENTS.md).
+
+## License
+
+Free and open source under the [GNU General Public License v3.0 or later](LICENSE).
